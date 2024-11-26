@@ -5,24 +5,38 @@ using System.Reflection;
 using System.Text;
 
 class Program {
+    static private List<BitArray> bitMatrix = new List<BitArray>();
+    static private List<BitArray> parityControlMatrix = new List<BitArray>();
+    static private List<BitArray> verticalAndHorizontalParityControlMatrix = new List<BitArray>();
+    //static private BitArray 
+    static private BitArray crcBits = new BitArray(0);
+    static private BitArray VControlSumBits = new BitArray(0);
+    static private BitArray HControlSumBits = new BitArray(0);
     static void Main() {
         string filePath = "file.txt";
         byte[] bytes = ReadFile(filePath);
         byte[] newBytes = ConvertToCorrectEncoding(bytes, 1251, 866);
-        List<BitArray> bitMatrix = GetBitMatrix(newBytes);
-        Console.WriteLine("================");
-        //НЕ ЗАБЫТЬ УБРАТЬ
-        foreach (byte b in newBytes) {
-            Console.WriteLine($"{b:X2} : {ByteToBinary(b)} :");
-            //Console.WriteLine(bitArray.ToString());
+        bitMatrix = GetBitMatrix(newBytes);
+        
 
-        }
+        parityControlMatrix = ParityControl(bitMatrix);
+        verticalAndHorizontalParityControlMatrix = VerticalAndHorizontalParityControl(bitMatrix);
+        crcBits = CRC(newBytes);
+
         PrintMatrix(bitMatrix, "Исходные данные");
-        List<BitArray> parityControlBits = ParityControl(bitMatrix);
-        List<BitArray> verticalAndHorizontalParityControlBits = VerticalAndHorizontalParityControl(bitMatrix);
-        PrintMatrix(parityControlBits, "Контроль по паритету");
-        PrintMatrix(verticalAndHorizontalParityControlBits, "Вертикальный и горизонтальный контроль по паритету");
-        CRC(newBytes);
+        PrintMatrix(parityControlMatrix, "Контроль по паритету");
+        PrintMatrix(verticalAndHorizontalParityControlMatrix, "Вертикальный и горизонтальный контроль по паритету");
+        PrintBitArray(crcBits, "CRC");
+    }
+    private static void SaveToFile(List<BitArray> bitArray, string filePath) { 
+    
+    }
+    private static void PrintBitArray(BitArray bitArray, string message) {
+        Console.WriteLine($"========{message}========");
+        foreach (bool bit in bitArray) { 
+            Console.Write(bit ? "1" : "0");
+        }
+        Console.WriteLine("");
     }
     private static void PrintMatrix(List<BitArray> matrix, string message) {
         Console.WriteLine($"========{message}========");
@@ -53,21 +67,17 @@ class Program {
         byte[] fileBytes = File.ReadAllBytes(filePath);
         return fileBytes;
     }
-    //НЕ ЗАБЫТЬ УБРАТЬ
-    static string ByteToBinary(byte b) {
-        return Convert.ToString(b, 2).PadLeft(8, '0');
-    }
 
     private static List<BitArray> ParityControl(List<BitArray> bitMatrix) {
         //контроль по паритету
         List<BitArray> resultBytes = new List<BitArray>();
-        BitArray controlSumBits = GetControlSumVertical(bitMatrix);
+        VControlSumBits = GetControlSumVertical(bitMatrix);
         for (int i = 0; i < bitMatrix.Count; i++) { 
             BitArray resultByte = new BitArray(bitMatrix[i].Length + 1);
             for (int j = 0; j < bitMatrix[i].Length; j++) {
                 resultByte[j] = bitMatrix[i][j];
             }
-            resultByte[resultByte.Length - 1] = controlSumBits[i];
+            resultByte[resultByte.Length - 1] = VControlSumBits[i];
             resultBytes.Add(resultByte);
             
         }
@@ -98,17 +108,17 @@ class Program {
     }
     private static List<BitArray> VerticalAndHorizontalParityControl(List<BitArray> bitMatrix) {
         List<BitArray> resultBytes = new List<BitArray>();
-        BitArray controlSumBitsVertical = GetControlSumVertical(bitMatrix);
-        BitArray controlSumBitsHorizontal = GetControlSumHorizontal(bitMatrix);
+        VControlSumBits = GetControlSumVertical(bitMatrix);
+        HControlSumBits = GetControlSumHorizontal(bitMatrix);
         for (int i = 0; i < bitMatrix.Count; i++) {
             BitArray resultByte = new BitArray(bitMatrix[i].Length + 1);
             for (int j = 0; j < bitMatrix[i].Length; j++) {
                 resultByte[j] = bitMatrix[i][j];
             }
-            resultByte[resultByte.Length - 1] = controlSumBitsVertical[i];
+            resultByte[resultByte.Length - 1] = VControlSumBits[i];
             resultBytes.Add(resultByte);
         }
-        resultBytes.Add(controlSumBitsHorizontal);
+        resultBytes.Add(HControlSumBits);
         return resultBytes;
     }
     private static BitArray GetControlSumHorizontal(List<BitArray> bitMatrix) {
@@ -134,11 +144,11 @@ class Program {
         int frameLength = 0;
         int ind = 0;
         do {
-            Console.WriteLine($"{ind}: {polynomial[ind]} = {polynomial.Length - ind}");
+            //Console.WriteLine($"{ind}: {polynomial[ind]} = {polynomial.Length - ind}");
             frameLength = polynomial.Length - ind - 2;
             ind++;
         } while (!polynomial[ind]);
-        Console.WriteLine($"Кадр: {frameLength}");
+        //Console.WriteLine($"Кадр: {frameLength}");
         BitArray newBitArray = new BitArray(initialBitArray.Length + frameLength);
         for (int i = 0; i < initialBitArray.Length; i++) {
             newBitArray[i] = initialBitArray[i];
@@ -148,72 +158,76 @@ class Program {
         }
         return newBitArray;
     }
-    private static void CRC(byte[] bytes) {
+    private static BitArray CRC(byte[] bytes) {
         
         BitArray polynomial = new BitArray(new byte[] { 0x08, 0x05 });
         BitArray num = AddFrame(new BitArray(bytes), polynomial);
+        BitArray initialNum = new BitArray(num);
         BitArray zero = new BitArray(new byte[] { 0x00, 0x00 });
         //BitArray num = new BitArray(num.Length + polynomial.Length);
-        Console.WriteLine("========CRC========");
-        foreach (bool bit in polynomial) {
-            Console.Write(bit ? "1 " : "0 ");
-        }
-        Console.WriteLine("");
-        foreach (bool bit in num) {
-            Console.Write(bit ? "1 " : "0 ");
-        }
-        Console.WriteLine("");
+        //Console.WriteLine("========CRC========");
+        //foreach (bool bit in num) {
+        //    Console.Write(bit ? "1" : "0");
+        //}
+        //Console.WriteLine("");
+        //Console.WriteLine("XOR");
+        //foreach (bool bit in polynomial) {
+        //    Console.Write(bit ? "1" : "0");
+        //}
+        //Console.WriteLine("");
 
         int index = 0;
-        Console.WriteLine($"poly len: {polynomial.Length}; num len {num.Length}; Limit {num.Length - polynomial.Length}");
+        //Console.WriteLine($"poly len: {polynomial.Length}; num len {num.Length}; Limit {num.Length - polynomial.Length}");
         while (index <= num.Length - polynomial.Length) {
-            Console.WriteLine($"NEW {index}");
-            Console.WriteLine("===");
+            //Console.WriteLine($"NEW {index}");
+            //Console.WriteLine("===");
+            //for (int i = 0; i < polynomial.Length; i++) {
+            //    Console.Write(num[i + index] ? "1" : "0");
+            //}
+            //Console.WriteLine("");
+            //for (int i = 0; i < polynomial.Length; i++) {
+            //    if (num[0 + index]) {
+            //        Console.Write(polynomial[i] ? "1" : "0");
+            //    }
+            //    else {
+            //        Console.Write("0");
+            //    }
+            //}
+            //Console.WriteLine("");
+            //Console.WriteLine("===");
             for (int i = 0; i < polynomial.Length; i++) {
-                Console.Write(num[i + index] ? "1" : "0");
-            }
-            Console.WriteLine("");
-            for (int i = 0; i < polynomial.Length; i++) {
-                if (num[0 + index]) {
-                    Console.Write(polynomial[i] ? "1" : "0");
-                }
-                else {
-                    Console.Write("0");
-                }
-            }
-            Console.WriteLine("");
-            Console.WriteLine("===");
-            for (int i = 0; i < polynomial.Length; i++) {
-                Console.Write($"{i + index}: {num[0 + index]} -> ");
+                //Console.Write($"{i + index}: {num[0 + index]} -> ");
                 if (!num[0 + index]) {
-                    Console.Write($"div [${i + index}] by zero: {num[i + index]} XOR {zero[i]} = ");
+                    //Console.Write($"div [${i + index}] by zero: {num[i + index]} XOR {zero[i]} = ");
                     num[i + index] = num[i + index] ^ zero[i];
-                    Console.WriteLine($"{num[i + index]}");
+                    //Console.WriteLine($"{num[i + index]}");
                 }
                 else {
-                    Console.Write($"div [${i+index}] by polynomial[${i}]: {num[i + index]} XOR {polynomial[i]} = ");
+                    //Console.Write($"div [${i+index}] by polynomial[${i}]: {num[i + index]} XOR {polynomial[i]} = ");
                     num[i + index] = num[i + index] ^ polynomial[i];
-                    Console.WriteLine($"{num[i + index]}");
+                    //Console.WriteLine($"{num[i + index]}");
                 }
             }
-            foreach (bool bit in num) {
-                Console.Write(bit ? "1" : "0");
-            }
-            Console.WriteLine("");
+            //foreach (bool bit in num) {
+            //    Console.Write(bit ? "1" : "0");
+            //}
+            //Console.WriteLine("");
             index++;
         }
-        //  num - исходное число
-        //  polynomial - образующий многочлен
-        //  index = 0
-        //  while(index != num.size - polynomial.size){
-        //    for(int i = 0 + index; i < polynomial.size + index; i++){
-        //        if(num[0] == 0)
-        //            num[i] = num[i] XOR 0x0
-        //        else
-        //            num[i] = num[i] XOR polynomial[i]
-        //    }
-        //  }
+        //BitArray result = new BitArray(num.Length);
+        BitArray result = new BitArray(polynomial.Length);
+        //Console.WriteLine("========CRC========");
+        //for (int i = 0; i < num.Length - polynomial.Length; i++) { 
+        //    result[i] = initialNum[i];
+        //}
+        for (int i = num.Length - polynomial.Length; i < num.Length; i++) {
+            result[i - (num.Length - polynomial.Length)] = num[i];
+        }
 
-        
+        //foreach (bool bit in result) {
+        //    Console.Write(bit ? "1" : "0");
+        //}
+        //Console.WriteLine("");
+        return result;
     }
 }
