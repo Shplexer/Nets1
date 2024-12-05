@@ -304,10 +304,10 @@ class Program {
             crc = (ushort)(crc & finalmask);
         }
 
-        crc = (ushort)(resultReflected ? MirrorBitsBySize(crc, crcsize) : crc);
+        crc = resultReflected ? MirrorBitsBySize(crc, crcsize) : crc;
         crc ^= finalXor;
 
         //PrintBinary(crc);
-        return (ushort)(crc);
+        return crc;
     }
 }
